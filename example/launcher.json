@@ -1,0 +1,35 @@
+{
+  "app_id": "TApp",
+  "log_level": "DEBUG",
+  "gc_control": {
+    "disable_default_gc": false,
+    "enable_force": true,
+    "force_policy": {
+      "interval_seconds": 120,
+      "mem_peak": 0
+    }
+  },
+  "configs": [
+    {"key": "scene", "path": "/etc/config/TApp/scene.json"},
+    {"key": "channelCA", "path": "/etc/config/TApp/channelCA.crt"}
+  ],
+  "sub_process_list_bak": [
+    {"launcher_cfg": "/etc/t_sub_launcher.json", "log_out_prefix": "TAppSub1"}
+  ],
+  "components": [
+    {
+      "component_type": "LoginMgr",
+      "disable":false,
+      "kw": {
+        "server_addr": "0.0.0.0:8080"
+      }
+    },
+    {
+      "component_type": "PayMgr",
+      "disable":false,
+      "kw": {
+        "server_addr": "0.0.0.0:8081"
+      }
+    }
+  ]
+}
