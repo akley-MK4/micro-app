@@ -1,34 +1,44 @@
 {
-  "app_id": "TApp",
+  "app_id": "SimApp",
   "log_level": "DEBUG",
   "gc_control": {
     "disable_default_gc": false,
-    "enable_force": true,
+    "enable_force": false,
     "force_policy": {
       "interval_seconds": 120,
-      "mem_peak": 0
+      "mem_peak": 4096
     }
   },
-  "configs": [
-    {"key": "scene", "path": "/etc/config/TApp/scene.json"},
-    {"key": "channelCA", "path": "/etc/config/TApp/channelCA.crt"}
-  ],
-  "sub_process_list_bak": [
-    {"launcher_cfg": "/etc/t_sub_launcher.json", "log_out_prefix": "TAppSub1"}
-  ],
-  "components": [
+  "configs": [{
+    "key": "http_api_routes",
+    "path": "/etc/config/simapp/http_api_routes.json"
+  },
     {
-      "component_type": "LoginMgr",
-      "disable":false,
-      "kw": {
-        "server_addr": "0.0.0.0:8080"
-      }
-    },
+      "key": "static_resource_hash_list",
+      "path": "/etc/config/simapp/static_resource_hash_list.json"
+    }
+  ],
+  "sub_process_list": {
+    "enable": false,
+    "commands": [{
+      "launcher_cfg": "/etc/config/simapp/sub_launcher.json",
+      "log_out_prefix": "SimAppSub1"
+    }]
+  },
+  "components": [{
+    "component_type": "HTTPAPIServer",
+    "disable": false,
+    "kw": {
+      "server_addr": "0.0.0.0:8080",
+      "handler_workers_num": 100
+    }
+  },
     {
-      "component_type": "PayMgr",
-      "disable":false,
+      "component_type": "StaticResourceServer",
+      "disable": false,
       "kw": {
-        "server_addr": "0.0.0.0:8081"
+        "server_addr": "0.0.0.0:8081",
+        "access_key": "b4a3e6dc20eaa6d"
       }
     }
   ]

@@ -6,45 +6,45 @@ import (
 )
 
 func init() {
-	frame.RegisterComponentInfo(frame.ComponentPriorityGeneral, "LoginMgr", func() frame.IComponent {
-		return &LoginMgrComponent{}
+	frame.RegisterComponentInfo(frame.ComponentPriorityGeneral, "HTTPAPIServer", func() frame.IComponent {
+		return &HTTPAPIServerComponent{}
 	}, func() frame.IComponentKW {
-		return &LoginMgrComponentKW{}
+		return &HTTPAPIServerComponentKW{}
 	})
 
-	frame.RegisterComponentInfo(frame.ComponentPriorityGeneral, "PayMgr", func() frame.IComponent {
-		return &PayMgrComponent{}
+	frame.RegisterComponentInfo(frame.ComponentPriorityGeneral, "StaticResourceServer", func() frame.IComponent {
+		return &StaticResourceServerComponent{}
 	}, func() frame.IComponentKW {
-		return &PayMgrComponentKW{}
+		return &StaticResourceServerComponentKW{}
 	})
 }
 
-type LoginMgrComponentKW struct {
+type HTTPAPIServerComponentKW struct {
 	ServerAddr string `json:"server_addr"`
 }
 
-type LoginMgrComponent struct {
+type HTTPAPIServerComponent struct {
 	frame.BaseComponent
 }
 
-func (t *LoginMgrComponent) Initialize(kw frame.IComponentKW) error {
-	kwArgs := kw.(*LoginMgrComponentKW)
+func (t *HTTPAPIServerComponent) Initialize(kw frame.IComponentKW) error {
+	kwArgs := kw.(*HTTPAPIServerComponentKW)
 
-	rstlog.GetDefaultLogger().InfoF("LoginMgrComponent Initialize KWArgs: %v", kwArgs)
+	rstlog.GetDefaultLogger().InfoF("HTTPAPIServer Initialize KWArgs: %v", kwArgs)
 	return nil
 }
 
-type PayMgrComponentKW struct {
+type StaticResourceServerComponentKW struct {
 	ServerAddr string `json:"server_addr"`
 }
 
-type PayMgrComponent struct {
+type StaticResourceServerComponent struct {
 	frame.BaseComponent
 }
 
-func (t *PayMgrComponent) Initialize(kw frame.IComponentKW) error {
-	kwArgs := kw.(*PayMgrComponentKW)
+func (t *StaticResourceServerComponent) Initialize(kw frame.IComponentKW) error {
+	kwArgs := kw.(*StaticResourceServerComponentKW)
 
-	rstlog.GetDefaultLogger().InfoF("PayMgrComponent Initialize KWArgs: %v", kwArgs)
+	rstlog.GetDefaultLogger().InfoF("StaticResourceServer Initialize KWArgs: %v", kwArgs)
 	return nil
 }
