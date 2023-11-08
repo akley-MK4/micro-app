@@ -36,13 +36,18 @@ type GCControl struct {
 	} `json:"force_policy"`
 }
 
+type SubProcessList struct {
+	Enable   bool                     `json:"enable"`
+	Commands []map[string]interface{} `json:"commands"`
+}
+
 type LauncherConfigModel struct {
-	AppID          string                   `json:"app_id"`
-	LogLevel       string                   `json:"log_level"`
-	GCControl      GCControl                `json:"gc_control"`
-	ConfigInfoList []*configInfoModel       `json:"configs"`
-	SubProcessList []map[string]interface{} `json:"sub_process_list"`
-	Components     []componentConfigModel   `json:"components"`
+	AppID          string                 `json:"app_id"`
+	LogLevel       string                 `json:"log_level"`
+	GCControl      GCControl              `json:"gc_control"`
+	ConfigInfoList []*configInfoModel     `json:"configs"`
+	SubProcessList SubProcessList         `json:"sub_process_list"`
+	Components     []componentConfigModel `json:"components"`
 }
 
 func LaunchDaemonApplication(processType ProcessType, workPath string, launchConf string, newApp NewApplication,
@@ -118,17 +123,18 @@ func LaunchDaemonApplication(processType ProcessType, workPath string, launchCon
 	}
 	getLoggerInst().Info("Successfully triggered event APP_AfterStart")
 
-	if len(launcherConf.SubProcessList) > 0 {
+	if launcherConf.SubProcessList.Enable {
 		getLoggerInst().InfoF("Start sub process after %d seconds", waitStartSubProcSec)
 		time.Sleep(time.Second * waitStartSubProcSec)
-	}
-	for _, kwArgs := range launcherConf.SubProcessList {
-		_, argsStr, newCmdErr := startSubprocess(os.Args[0], kwArgs)
-		if newCmdErr != nil {
-			getLoggerInst().WarningF("Failed to start sub process, Args: %s, Err: %v", argsStr, newCmdErr)
-			continue
+
+		for _, kwArgs := range launcherConf.SubProcessList.Commands {
+			_, argsStr, newCmdErr := startSubprocess(os.Args[0], kwArgs)
+			if newCmdErr != nil {
+				getLoggerInst().WarningF("Failed to start sub process, Args: %s, Err: %v", argsStr, newCmdErr)
+				continue
+			}
+			getLoggerInst().InfoF("Created a sub process, Args: %s", argsStr)
 		}
-		getLoggerInst().InfoF("Created a sub process, Args: %s", argsStr)
 	}
 
 	getLoggerInst().Info("Application is running")
