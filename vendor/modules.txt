@@ -1,7 +1,7 @@
-# github.com/akley-MK4/go-box v1.0.0
-## explicit; go 1.18
-github.com/akley-MK4/go-box/ctime
-github.com/akley-MK4/go-box/ossignal
+# github.com/akley-MK4/go-tools-box v1.0.0-pre
+## explicit; go 1.19
+github.com/akley-MK4/go-tools-box/ctime
+github.com/akley-MK4/go-tools-box/signal
 # github.com/akley-MK4/pubsub v1.0.0
 ## explicit; go 1.18
 github.com/akley-MK4/pubsub

@@ -1,24 +1,24 @@
-package ossignal
+package signal
 
 import (
 	"os"
 	"os/signal"
 )
 
-type SignalHandleFunc func()
+type HandleFunc func()
 
-type SignalHandler struct {
-	regSigMap  map[os.Signal]SignalHandleFunc
+type Handler struct {
+	regSigMap  map[os.Signal]HandleFunc
 	listenChan chan os.Signal
 }
 
-func (t *SignalHandler) InitSignalHandler(listenChanSize uint32) error {
-	t.regSigMap = make(map[os.Signal]SignalHandleFunc)
+func (t *Handler) InitSignalHandler(listenChanSize uint32) error {
+	t.regSigMap = make(map[os.Signal]HandleFunc)
 	t.listenChan = make(chan os.Signal, listenChanSize)
 	return nil
 }
 
-func (t *SignalHandler) RegisterSignal(signal os.Signal, handleFunc SignalHandleFunc) bool {
+func (t *Handler) RegisterSignal(signal os.Signal, handleFunc HandleFunc) bool {
 	if _, exist := t.regSigMap[signal]; exist {
 		return false
 	}
@@ -27,14 +27,14 @@ func (t *SignalHandler) RegisterSignal(signal os.Signal, handleFunc SignalHandle
 	return true
 }
 
-func (t *SignalHandler) CloseSignalHandler() {
+func (t *Handler) CloseSignalHandler() {
 	if t.listenChan == nil {
 		return
 	}
 	close(t.listenChan)
 }
 
-func (t *SignalHandler) ListenSignal() {
+func (t *Handler) ListenSignal() {
 	var sigs []os.Signal
 	for sig := range t.regSigMap {
 		sigs = append(sigs, sig)
