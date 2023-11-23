@@ -85,7 +85,7 @@ func RegisterConfigCallback(cbType ConfigCallbackType, conf IConfig, f ConfigCal
 }
 
 func GetConfigTemplatePath(workPath string) string {
-	return path.Join(workPath, "configs", "pcapserver_template")
+	return path.Join(workPath, "configs", "template")
 }
 
 type IConfig interface {
