@@ -3,8 +3,8 @@ package frame
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/akley-MK4/go-box/ctime"
-	"github.com/akley-MK4/go-box/ossignal"
+	"github.com/akley-MK4/go-tools-box/ctime"
+	ossignal "github.com/akley-MK4/go-tools-box/signal"
 	"github.com/akley-MK4/pubsub"
 	"os"
 	"syscall"
@@ -43,7 +43,7 @@ type IApplication interface {
 type BaseApplication struct {
 	id            ApplicationID
 	processType   ProcessType
-	signalHandler *ossignal.SignalHandler
+	signalHandler *ossignal.Handler
 	ob            *pubsub.ObServer
 	componentMap  map[ComponentID]IComponent
 }
@@ -53,7 +53,7 @@ func (t *BaseApplication) baseInitialize(id ApplicationID, processType ProcessTy
 	t.processType = processType
 	t.componentMap = make(map[ComponentID]IComponent)
 
-	t.signalHandler = &ossignal.SignalHandler{}
+	t.signalHandler = &ossignal.Handler{}
 	if err := t.signalHandler.InitSignalHandler(APPDefaultSignChanSize); err != nil {
 		return err
 	}
