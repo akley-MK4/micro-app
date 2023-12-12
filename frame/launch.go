@@ -137,6 +137,15 @@ func LaunchDaemonApplication(processType ProcessType, workPath string, launchCon
 		}
 	}
 
+	setInitialMemorySnapshot()
+	memSnapshot := GetInitialMemorySnapshot()
+	memSnapshotData, marshalMemSnapshotErr := json.Marshal(memSnapshot)
+	if marshalMemSnapshotErr != nil {
+		getLoggerInst().WarningF("Failed to marshal current memory snapshot, %v", marshalMemSnapshotErr)
+	} else {
+		getLoggerInst().InfoF("Current memory snapshot: %v", string(memSnapshotData))
+	}
+
 	getLoggerInst().Info("Application is running")
 	app.forever()
 
