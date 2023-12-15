@@ -1,13 +1,10 @@
-# github.com/akley-MK4/go-tools-box v1.0.0-pre
+# github.com/akley-MK4/go-tools-box v1.0.0
 ## explicit; go 1.19
 github.com/akley-MK4/go-tools-box/ctime
 github.com/akley-MK4/go-tools-box/signal
 # github.com/akley-MK4/pubsub v1.0.0
 ## explicit; go 1.18
 github.com/akley-MK4/pubsub
-# github.com/akley-MK4/rstlog v1.0.0
-## explicit; go 1.18
-github.com/akley-MK4/rstlog
 # github.com/fsnotify/fsnotify v1.7.0
 ## explicit; go 1.17
 github.com/fsnotify/fsnotify

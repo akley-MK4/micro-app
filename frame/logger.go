@@ -1,6 +1,9 @@
 package frame
 
-import "sync/atomic"
+import (
+	"errors"
+	"sync/atomic"
+)
 
 type ILogger interface {
 	SetLevelByDesc(levelDesc string) bool
@@ -75,11 +78,15 @@ func getLoggerInst() ILogger {
 	return exaLoggerInst
 }
 
-func SetFrameLoggerInstance(logger ILogger) bool {
+func SetFrameLoggerInstance(logger ILogger) error {
+	if logger == nil {
+		return errors.New("the logger instance is a nil value")
+	}
+
 	if !atomic.CompareAndSwapInt32(&loggerSetTag, 0, 1) {
-		return false
+		return errors.New("repeatedly setting the logger instance")
 	}
 
 	extLoggerInst = logger
-	return true
+	return nil
 }

@@ -1,8 +1,7 @@
-package example
+package main
 
 import (
 	"github.com/akley-MK4/micro-app/frame"
-	"github.com/akley-MK4/rstlog"
 )
 
 func init() {
@@ -30,7 +29,7 @@ type HTTPAPIServerComponent struct {
 func (t *HTTPAPIServerComponent) Initialize(kw frame.IComponentKW) error {
 	kwArgs := kw.(*HTTPAPIServerComponentKW)
 
-	rstlog.GetDefaultLogger().InfoF("HTTPAPIServer Initialize KWArgs: %v", kwArgs)
+	getGlobalLoggerInstance().InfoF("HTTPAPIServer Initialize KWArgs: %v", kwArgs)
 	return nil
 }
 
@@ -45,6 +44,6 @@ type StaticResourceServerComponent struct {
 func (t *StaticResourceServerComponent) Initialize(kw frame.IComponentKW) error {
 	kwArgs := kw.(*StaticResourceServerComponentKW)
 
-	rstlog.GetDefaultLogger().InfoF("StaticResourceServer Initialize KWArgs: %v", kwArgs)
+	getGlobalLoggerInstance().InfoF("StaticResourceServer Initialize KWArgs: %v", kwArgs)
 	return nil
 }
