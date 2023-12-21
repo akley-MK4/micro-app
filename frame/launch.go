@@ -43,6 +43,7 @@ type SubProcessList struct {
 
 type LauncherConfigModel struct {
 	AppID          string                 `json:"app_id"`
+	PidFileDirPath string                 `json:"pid_file_dir_path"`
 	LogLevel       string                 `json:"log_level"`
 	GCControl      GCControl              `json:"gc_control"`
 	ConfigInfoList []*configInfoModel     `json:"configs"`
@@ -146,6 +147,34 @@ func LaunchDaemonApplication(processType ProcessType, workPath string, launchCon
 		getLoggerInst().InfoF("Current memory snapshot: %v", string(memSnapshotData))
 	}
 
+	// process pid file
+	pidFileDirPath := launcherConf.PidFileDirPath
+	if pidFileDirPath == "" {
+		pidFileDirPath = workPath
+	}
+	var pidFilePath string
+	if launcherConf.AppID != "" {
+		pidFilePath = path.Join(pidFileDirPath, fmt.Sprintf("%s.pid", launcherConf.AppID))
+	}
+	if pidFilePath != "" {
+		checkPidFileExist, checkPidFileErr := checkProcessIdFileExist(pidFilePath)
+		if checkPidFileErr != nil {
+			getLoggerInst().WarningF("Failed to check the process id file, Path: %s, Err: %v", pidFilePath, checkPidFileErr)
+		}
+		if checkPidFileExist {
+			getLoggerInst().Warning("There are currently identical pid files, please check for any conflicts")
+		}
+
+		pidNum, pidFileErr := updateProcessIdFile(pidFilePath)
+		if pidFileErr != nil {
+			getLoggerInst().WarningF("Failed to update process id file, Path: %v, Err: %v", pidFilePath, pidFileErr)
+		} else {
+			getLoggerInst().InfoF("The current process id is %d, and the file path is %s", pidNum, pidFilePath)
+		}
+	} else {
+		getLoggerInst().Warning("The process id file not created, unable to concatenate complete path")
+	}
+
 	getLoggerInst().Info("Application is running")
 	app.forever()
 
@@ -156,6 +185,12 @@ func LaunchDaemonApplication(processType ProcessType, workPath string, launchCon
 	getLoggerInst().Info("Stopping application")
 	if err := app.stop(); err != nil {
 		return fmt.Errorf("an error occurred when stopping application, %v", err)
+	}
+
+	if err := deleteProcessIdFile(pidFilePath); err != nil {
+		getLoggerInst().WarningF("Failed to delete the process id file, %v", err)
+	} else {
+		getLoggerInst().Info("Successfully deleted the process id file")
 	}
 
 	getLoggerInst().Info("Successfully stopped application")

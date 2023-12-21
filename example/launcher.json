@@ -1,5 +1,6 @@
 {
   "app_id": "SimApp",
+  "pid_file_dir_path": "/tmp/",
   "log_level": "DEBUG",
   "gc_control": {
     "disable_default_gc": false,
