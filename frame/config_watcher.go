@@ -23,26 +23,26 @@ const (
 	ConfigCallbackTypeRemove
 )
 
-type newConfigFunc func() IConfig
+type NewConfigHandlerFunc func() IConfigHandler
 
 type ConfigRegInfo struct {
 	Key                   string
 	Suffix                string
-	NewFunc               newConfigFunc
+	NewConfigHandlerFunc  NewConfigHandlerFunc
 	MustLoad              bool
 	EnableWatchLog        bool
 	RetryWatchIntervalSec uint64
 }
 
 var (
-	configHandlerMgr = &ConfigHandlerMgr{
-		handlerMap: make(map[string]*ConfigHandler),
+	configWatcherMgr = &ConfigWatcherMgr{
+		watcherMap: make(map[string]*ConfigWatcher),
 	}
 	configRegInfoMap = make(map[string]*ConfigRegInfo)
 )
 
-func GetConfigHandlerMgr() *ConfigHandlerMgr {
-	return configHandlerMgr
+func GetConfigWatcherMgr() *ConfigWatcherMgr {
+	return configWatcherMgr
 }
 
 func RegisterConfigInfo(info ConfigRegInfo) {
@@ -51,13 +51,13 @@ func RegisterConfigInfo(info ConfigRegInfo) {
 
 type ConfigCallback func()
 
-func RegisterConfigCallback(cbType ConfigCallbackType, conf IConfig, f ConfigCallback) bool {
+func RegisterConfigCallback(cbType ConfigCallbackType, confHandler IConfigHandler, f ConfigCallback) bool {
 	if cbType < ConfigCallbackTypeCreate || cbType > ConfigCallbackTypeRemove {
 		return false
 	}
 
-	for _, handler := range configHandlerMgr.handlerMap {
-		if handler.config != conf {
+	for _, watcher := range configWatcherMgr.watcherMap {
+		if watcher.confHandler != confHandler {
 			continue
 		}
 
@@ -65,13 +65,13 @@ func RegisterConfigCallback(cbType ConfigCallbackType, conf IConfig, f ConfigCal
 
 		switch cbType {
 		case ConfigCallbackTypeCreate:
-			cbList = &handler.createTypeCallbacks
+			cbList = &watcher.createTypeCallbacks
 			break
 		case ConfigCallbackTypeUpdate:
-			cbList = &handler.updateTypeCallbacks
+			cbList = &watcher.updateTypeCallbacks
 			break
 		case ConfigCallbackTypeRemove:
-			cbList = &handler.removeTypeCallbacks
+			cbList = &watcher.removeTypeCallbacks
 			break
 		default:
 			return false
@@ -88,18 +88,18 @@ func GetConfigTemplatePath(workPath string) string {
 	return path.Join(workPath, "configs", "template")
 }
 
-type IConfig interface {
+type IConfigHandler interface {
 	EncodeConfig(data []byte) error
 	OnUpdate()
-	GetModelData() ([]byte, error)
+	GetConfigData() ([]byte, error)
 }
 
-type ConfigHandlerMgr struct {
-	handlerMap map[string]*ConfigHandler
+type ConfigWatcherMgr struct {
+	watcherMap map[string]*ConfigWatcher
 }
 
-func (t *ConfigHandlerMgr) initialize(workPath string, configInfoList []*configInfoModel, enabledDevMode bool) error {
-	t.handlerMap = make(map[string]*ConfigHandler)
+func (t *ConfigWatcherMgr) initialize(workPath string, configInfoList []*configInfoModel, enabledDevMode bool) error {
+	t.watcherMap = make(map[string]*ConfigWatcher)
 
 	for _, info := range configInfoList {
 		regInfo := configRegInfoMap[info.Key]
@@ -122,42 +122,42 @@ func (t *ConfigHandlerMgr) initialize(workPath string, configInfoList []*configI
 			regInfo.RetryWatchIntervalSec = info.RetryWatchIntervalSec
 		}
 
-		handler := &ConfigHandler{}
-		if err := handler.initialize(info.Key, info.Path, regInfo); err != nil {
-			return fmt.Errorf("unable to initialize ConfigHandler, Key: %v, Err: %v", info.Key, err)
+		watcher := &ConfigWatcher{}
+		if err := watcher.initialize(info.Key, info.Path, regInfo); err != nil {
+			return fmt.Errorf("unable to initialize ConfigWatcher %v, Err: %v", info.Key, err)
 		}
 
-		t.handlerMap[handler.GetKey()] = handler
+		t.watcherMap[watcher.GetKey()] = watcher
 	}
 
 	return nil
 }
 
-func (t *ConfigHandlerMgr) start() {
-	for _, handler := range t.handlerMap {
-		if err := handler.start(); err != nil {
-			getLoggerInst().WarningF("failed to start ConfigHandler, key: %v, Err: %v", handler.GetKey(), err)
+func (t *ConfigWatcherMgr) start() {
+	for _, watcher := range t.watcherMap {
+		if err := watcher.start(); err != nil {
+			getLoggerInst().WarningF("failed to start ConfigWatcher %v, Err: %v", watcher.GetKey(), err)
 		}
 	}
 }
 
-func (t *ConfigHandlerMgr) stop() {
-	for _, handler := range t.handlerMap {
-		if err := handler.stop(); err != nil {
-			getLoggerInst().WarningF("failed to stop ConfigHandler, key: %v, Err: %v", handler.GetKey(), err)
+func (t *ConfigWatcherMgr) stop() {
+	for _, watcher := range t.watcherMap {
+		if err := watcher.stop(); err != nil {
+			getLoggerInst().WarningF("failed to stop ConfigWatcher %v, Err: %v", watcher.GetKey(), err)
 		}
 	}
 }
 
-func (t *ConfigHandlerMgr) GetConfigHandlerListInfo() (retList []ConfigHandlerInfo) {
-	for _, handler := range t.handlerMap {
-		retList = append(retList, handler.GetInfo())
+func (t *ConfigWatcherMgr) GetConfigWatcherListInfo() (retList []ConfigWatcherInfo) {
+	for _, watcher := range t.watcherMap {
+		retList = append(retList, watcher.GetInfo())
 	}
 
 	return
 }
 
-type ConfigHandler struct {
+type ConfigWatcher struct {
 	version               int
 	updateTimestamp       int64
 	key                   string
@@ -170,17 +170,17 @@ type ConfigHandler struct {
 	retryWatchIntervalSec uint64
 
 	watcher             *fsnotify.Watcher
-	config              IConfig
+	confHandler         IConfigHandler
 	updateTypeCallbacks []ConfigCallback
 	createTypeCallbacks []ConfigCallback
 	removeTypeCallbacks []ConfigCallback
 }
 
-func (t *ConfigHandler) initialize(key, filePath string, regInfo *ConfigRegInfo) error {
+func (t *ConfigWatcher) initialize(key, filePath string, regInfo *ConfigRegInfo) error {
 	t.key = key
 	t.dir, t.fileName = path.Split(filePath)
 	t.path = path.Join(t.dir, t.fileName)
-	t.config = regInfo.NewFunc()
+	t.confHandler = regInfo.NewConfigHandlerFunc()
 
 	w, newWatcherErr := fsnotify.NewWatcher()
 	if newWatcherErr != nil {
@@ -214,20 +214,20 @@ func (t *ConfigHandler) initialize(key, filePath string, regInfo *ConfigRegInfo)
 		return loadErr
 	}
 
-	getLoggerInst().InfoF("Successfully initialized ConfigHandler %v, Dir: %s, Path: %s", t.key, t.dir, t.path)
+	getLoggerInst().InfoF("Successfully initialized ConfigWatcher %v, Dir: %s, Path: %s", t.key, t.dir, t.path)
 	return nil
 }
 
-func (t *ConfigHandler) start() error {
+func (t *ConfigWatcher) start() error {
 	go t.loopWatch()
 	return nil
 }
 
-func (t *ConfigHandler) stop() error {
+func (t *ConfigWatcher) stop() error {
 	return t.watcher.Close()
 }
 
-func (t *ConfigHandler) loadFiled() error {
+func (t *ConfigWatcher) loadFiled() error {
 	data, readErr := ioutil.ReadFile(t.path)
 	if readErr != nil {
 		return readErr
@@ -246,7 +246,7 @@ func (t *ConfigHandler) loadFiled() error {
 
 	t.hashVal = hashVal
 	getLoggerInst().InfoF("Read the configuration file from path %s, data: \n%s", t.path, string(data))
-	if err := t.config.EncodeConfig(data); err != nil {
+	if err := t.confHandler.EncodeConfig(data); err != nil {
 		return err
 	}
 	t.version += 1
@@ -256,11 +256,11 @@ func (t *ConfigHandler) loadFiled() error {
 	for _, f := range updateCallbacks {
 		f()
 	}
-	getLoggerInst().InfoF("Updated the configuration model of ConfigHandler %v, Version: %v", t.key, t.version)
+	getLoggerInst().InfoF("Updated the configuration of ConfigWatcher %v, Version: %v", t.key, t.version)
 	return nil
 }
 
-func (t *ConfigHandler) loopWatch() {
+func (t *ConfigWatcher) loopWatch() {
 	if !t.watched {
 		getLoggerInst().WarningF("Configuration %v dose not watch successfully, start timing check operation", t.key)
 		for {
@@ -290,14 +290,14 @@ func (t *ConfigHandler) loopWatch() {
 	getLoggerInst().Warning("LoopWatch break, Path: %v", t.dir)
 }
 
-func (t *ConfigHandler) watch() bool {
+func (t *ConfigWatcher) watch() bool {
 	select {
 	case err, ok := <-t.watcher.Errors:
 		if !ok {
 			getLoggerInst().Warning("watcher.Errors not ok")
 			return true
 		}
-		getLoggerInst().WarningF("ConfigHandler %v has failed to watch, Err: %v", t.key, err)
+		getLoggerInst().WarningF("ConfigWatcher %v has failed to watch, Err: %v", t.key, err)
 	case e, ok := <-t.watcher.Events:
 		if !ok {
 			getLoggerInst().Warning("watcher.Events not ok")
@@ -340,19 +340,19 @@ func (t *ConfigHandler) watch() bool {
 	return false
 }
 
-func (t *ConfigHandler) GetVersion() int {
+func (t *ConfigWatcher) GetVersion() int {
 	return t.version
 }
 
-func (t *ConfigHandler) GetKey() string {
+func (t *ConfigWatcher) GetKey() string {
 	return t.key
 }
 
-func (t *ConfigHandler) GetPath() string {
+func (t *ConfigWatcher) GetPath() string {
 	return t.path
 }
 
-func (t *ConfigHandler) intervalRetryWatchPath(dirPath string) {
+func (t *ConfigWatcher) intervalRetryWatchPath(dirPath string) {
 	var retryTotal int
 	for {
 		time.Sleep(time.Second * time.Duration(t.retryWatchIntervalSec))
@@ -371,7 +371,7 @@ func (t *ConfigHandler) intervalRetryWatchPath(dirPath string) {
 	}
 }
 
-type ConfigHandlerInfo struct {
+type ConfigWatcherInfo struct {
 	Version         int
 	UpdateTimestamp int64
 	Key             string
@@ -379,11 +379,11 @@ type ConfigHandlerInfo struct {
 	Dir             string
 	FileName        string
 	//HashVal         string
-	Watched   bool
-	ModelData string
+	Watched    bool
+	ConfigData string
 }
 
-func (t *ConfigHandler) GetInfo() (retInfo ConfigHandlerInfo) {
+func (t *ConfigWatcher) GetInfo() (retInfo ConfigWatcherInfo) {
 	hashVal := make([]byte, 0, md5.Size)
 	for _, v := range t.hashVal {
 		hashVal = append(hashVal, v)
@@ -398,16 +398,16 @@ func (t *ConfigHandler) GetInfo() (retInfo ConfigHandlerInfo) {
 	//retInfo.HashVal = string(hashVal)
 	retInfo.Watched = t.watched
 
-	if t.config == nil {
+	if t.confHandler == nil {
 		return
 	}
 
-	modelData, getModelDataErr := t.config.GetModelData()
-	if getModelDataErr != nil {
-		getLoggerInst().WarningF("Failed to get all configurations info, %v", getModelDataErr)
+	cfgData, getCfgDataErr := t.confHandler.GetConfigData()
+	if getCfgDataErr != nil {
+		getLoggerInst().WarningF("Failed to get the data of the configuration %v, %v", t.key, getCfgDataErr)
 		return
 	}
 
-	retInfo.ModelData = string(modelData)
+	retInfo.ConfigData = string(cfgData)
 	return
 }

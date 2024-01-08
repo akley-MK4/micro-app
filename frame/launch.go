@@ -78,15 +78,15 @@ func LaunchDaemonApplication(processType ProcessType, workPath string, launchCon
 	// Set GC
 	setGCPolicy(launcherConf.GCControl)
 
-	// Initialize and start the configuration handler manager
-	getLoggerInst().Info("Initializing configuration manager")
-	if err := GetConfigHandlerMgr().initialize(workPath, launcherConf.ConfigInfoList, enabledDevMode); err != nil {
-		return fmt.Errorf("unable to initialize configuration manager, %v", err)
+	// Initialize and start the configuration watcher manager
+	getLoggerInst().Info("Initializing configuration watcher manager")
+	if err := GetConfigWatcherMgr().initialize(workPath, launcherConf.ConfigInfoList, enabledDevMode); err != nil {
+		return fmt.Errorf("unable to initialize configuration watcher manager, %v", err)
 	}
-	getLoggerInst().Info("Successfully initialized configuration manager")
-	getLoggerInst().Info("Starting configuration manager")
-	GetConfigHandlerMgr().start()
-	getLoggerInst().Info("Successfully started configuration manager")
+	getLoggerInst().Info("Successfully initialized configuration watcher manager")
+	getLoggerInst().Info("Starting configuration watcher manager")
+	GetConfigWatcherMgr().start()
+	getLoggerInst().Info("Successfully started configuration watcher manager")
 
 	getLoggerInst().InfoF("New application with id (%v)", launcherConf.AppID)
 	var app IApplication
