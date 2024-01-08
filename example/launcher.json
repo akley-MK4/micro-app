@@ -12,13 +12,8 @@
   },
   "configs": [{
     "key": "http_api_routes",
-    "path": "/etc/config/simapp/http_api_routes.json"
-  },
-    {
-      "key": "static_resource_hash_list",
-      "path": "/etc/config/simapp/static_resource_hash_list.json"
-    }
-  ],
+    "path": "/tmp/config/simapp/http_api_routes.json"
+  }],
   "sub_process_list": {
     "enable": false,
     "commands": [{

@@ -57,6 +57,9 @@ func runApp() {
 	}
 	getGlobalLoggerInstance().InfoF("The current number of logical CPUs available for the process is %d", availableNumCPU)
 
+	// Register configs
+	registerConfigs()
+
 	// Create and run application
 	if err := frame.LaunchDaemonApplication(frame.ProcessType(*processType), workPath, *launchConf,
 		nil, nil, *enableDevMode); err != nil {

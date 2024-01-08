@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"github.com/akley-MK4/micro-app/frame"
 )
 
@@ -30,6 +31,14 @@ func (t *HTTPAPIServerComponent) Initialize(kw frame.IComponentKW) error {
 	kwArgs := kw.(*HTTPAPIServerComponentKW)
 
 	getGlobalLoggerInstance().InfoF("HTTPAPIServer Initialize KWArgs: %v", kwArgs)
+	if !frame.RegisterConfigCallback(frame.ConfigCallbackTypeUpdate, GetConfigHandler(), onUpdateConfigEvent) {
+		return errors.New("unable to register configuration callback function")
+	}
+
+	return nil
+}
+
+func (t *HTTPAPIServerComponent) Start() error {
 	return nil
 }
 
@@ -46,4 +55,8 @@ func (t *StaticResourceServerComponent) Initialize(kw frame.IComponentKW) error 
 
 	getGlobalLoggerInstance().InfoF("StaticResourceServer Initialize KWArgs: %v", kwArgs)
 	return nil
+}
+
+func onUpdateConfigEvent() {
+	getGlobalLoggerInstance().DebugF("Updated the configuration, addr: %s", GetConfig().Addr)
 }
