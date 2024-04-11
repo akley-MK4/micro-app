@@ -34,9 +34,7 @@ type IApplication interface {
 	Pub(topic TopicType, args ...interface{}) error
 	Sub(topic TopicType, subKey TopicSubKey, handle pubsub.TopicFunc, preArgs ...interface{}) error
 	start() error
-	AfterStart() error
 	stop() error
-	StopBefore() error
 	forever()
 }
 

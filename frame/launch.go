@@ -119,10 +119,6 @@ func LaunchDaemonApplication(processType ProcessType, workPath string, launchCon
 		return fmt.Errorf("unable to start application, %v", err)
 	}
 	getLoggerInst().Info("Successfully started application")
-	if err := app.AfterStart(); err != nil {
-		return fmt.Errorf("an error occurred when triggering event APP_AfterStart, %v", err)
-	}
-	getLoggerInst().Info("Successfully triggered event APP_AfterStart")
 
 	if launcherConf.SubProcessList.Enable {
 		getLoggerInst().InfoF("Start sub process after %d seconds", waitStartSubProcSec)
@@ -178,10 +174,6 @@ func LaunchDaemonApplication(processType ProcessType, workPath string, launchCon
 	getLoggerInst().Info("Application is running")
 	app.forever()
 
-	getLoggerInst().Info("Preparing to stop application")
-	if err := app.StopBefore(); err != nil {
-		return fmt.Errorf("an error occurred when triggering event APP_StopBefore, %v", err)
-	}
 	getLoggerInst().Info("Stopping application")
 	if err := app.stop(); err != nil {
 		return fmt.Errorf("an error occurred when stopping application, %v", err)
