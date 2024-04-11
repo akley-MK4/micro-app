@@ -41,11 +41,7 @@ type IComponent interface {
 	GetStartTimestamp() int64
 	setStartTimestamp(tp int64)
 	Start() error
-	AfterStart() error
-	StopBefore() error
 	Stop() error
-	//AcceptAssociation(args ...interface{})
-	//Associate()
 }
 
 var (
