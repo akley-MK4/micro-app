@@ -1,8 +1,13 @@
 package frame
 
 import (
+	"context"
+	"fmt"
+	"github.com/shirou/gopsutil/v3/mem"
 	"runtime"
 	"runtime/debug"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -22,7 +27,12 @@ func setGCPolicy(ctrl GCControl) {
 		getLoggerInst().Warning("Default GC turned off")
 	}
 
-	UpdateMemorySizeUsageLimit(ctrl.MemorySizeUsageLimit)
+	UpdateMemoryUsageLimitBytes(ctrl.MemoryUsageLimitBytes)
+	if ctrl.MemoryUsageLimitPercentage != "" {
+		if err := UpdateMemoryUsageLimitPercentage(ctrl.MemoryUsageLimitPercentage, 0); err != nil {
+			getLoggerInst().WarningF("Failed to update the percentage of memory usage limit, %v", err)
+		}
+	}
 
 	if !ctrl.EnableForce {
 		return
@@ -41,13 +51,48 @@ func setGCPolicy(ctrl GCControl) {
 		ctrl.ForcePolicy.IntervalSecondS, ctrl.ForcePolicy.MemPeak)
 }
 
-func UpdateMemorySizeUsageLimit(memorySizeLimit int64) bool {
-	if memorySizeLimit < 0 {
-		return false
+func UpdateMemoryUsageLimitBytes(limitBytes int64) {
+	if limitBytes <= 0 {
+		return
 	}
 
-	beforeMemorySizeLimit := debug.SetMemoryLimit(memorySizeLimit)
+	beforeLimitBytes := debug.SetMemoryLimit(limitBytes)
 	getLoggerInst().InfoF("The usage limit for memory size has been updated from %d to %d",
-		beforeMemorySizeLimit, memorySizeLimit)
-	return true
+		beforeLimitBytes, limitBytes)
+	return
+}
+
+func UpdateMemoryUsageLimitPercentage(usageLimitPercentage string, maxUsageLimitSize uint64) (retErr error) {
+	spList := strings.Split(usageLimitPercentage, "%")
+	if len(spList) != 2 {
+		retErr = fmt.Errorf("format error")
+		return
+	}
+
+	rate, convErr := strconv.ParseFloat(spList[0], 64)
+	if convErr != nil {
+		retErr = fmt.Errorf("convert error")
+		return
+	}
+	limitRate := float64(rate) / 100
+
+	if maxUsageLimitSize <= 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+		memInfo, errGetMemInfo := mem.VirtualMemoryWithContext(ctx)
+		cancel()
+		if errGetMemInfo != nil {
+			retErr = errGetMemInfo
+			return
+		}
+		maxUsageLimitSize = memInfo.Total
+	}
+
+	nowLimitSize := int64(float64(maxUsageLimitSize) * limitRate)
+	beforeLimitSize := debug.SetMemoryLimit(nowLimitSize)
+	getLoggerInst().InfoF("The usage limit for memory size has been updated from (%.2fGBs/%dMBs/%dBKs/%dBytes) to (%.2fGBs/%dMBs/%dKBs/%dBytes), "+
+		"MaxUsageLimitSize: %.2fGBs/%dMBs/%dKBs/%dBytes",
+		float64(beforeLimitSize)/float64(1024*1024*1024), beforeLimitSize/1024/1024, beforeLimitSize/1024, beforeLimitSize,
+		float64(nowLimitSize)/float64(1024*1024*1024), nowLimitSize/1024/1024, nowLimitSize/1024, nowLimitSize,
+		float64(maxUsageLimitSize)/float64(1024*1024*1024), maxUsageLimitSize/1024/1024, maxUsageLimitSize/1024, maxUsageLimitSize)
+	return
 }

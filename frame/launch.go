@@ -28,11 +28,12 @@ type configInfoModel struct {
 }
 
 type GCControl struct {
-	Percent              int   `json:"percent"`
-	DisableDefaultGC     bool  `json:"disable_default_gc"`
-	MemorySizeUsageLimit int64 `json:"memory_size_usage_limit"`
-	EnableForce          bool  `json:"enable_force"`
-	ForcePolicy          struct {
+	Percent                    int    `json:"percent"`
+	DisableDefaultGC           bool   `json:"disable_default_gc"`
+	MemoryUsageLimitBytes      int64  `json:"memory_usage_limit_bytes"`
+	MemoryUsageLimitPercentage string `json:"memory_usage_limit_percentage"`
+	EnableForce                bool   `json:"enable_force"`
+	ForcePolicy                struct {
 		IntervalSecondS int `json:"interval_seconds"`
 		MemPeak         int `json:"mem_peak"`
 	} `json:"force_policy"`
