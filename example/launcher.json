@@ -12,7 +12,8 @@
   },
   "configs": [{
     "key": "http_api_routes",
-    "path": "/tmp/config/simapp/http_api_routes.json"
+    "path": "/tmp/config/simapp/http_api_routes.json",
+    "enableWatchLog": true
   }],
   "sub_process_list": {
     "enable": false,
