@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/akley-MK4/go-tools-box/ctime"
 	"github.com/fsnotify/fsnotify"
-	"io/ioutil"
+	"os"
 	"path"
 	"time"
 )
@@ -194,7 +194,9 @@ func (t *ConfigWatcher) initialize(key, filePath string, regInfo *ConfigRegInfo)
 	}
 
 	if err := w.Add(t.dir); err != nil {
-		getLoggerInst().WarningF("Failed to add watch path %s, Key: %v, Err: %v", t.dir, t.key, err)
+		if t.enableWatchLog {
+			getLoggerInst().WarningF("Failed to add watch path %s, Key: %v, Err: %v", t.dir, t.key, err)
+		}
 		if regInfo.MustLoad {
 			return err
 		}
@@ -207,7 +209,7 @@ func (t *ConfigWatcher) initialize(key, filePath string, regInfo *ConfigRegInfo)
 	t.watched = true
 
 	loadErr := t.loadFiled()
-	if loadErr != nil {
+	if loadErr != nil && t.enableWatchLog {
 		getLoggerInst().WarningF("Failed to load configuration file from path %s, Key: %v, Err: %v", t.path, t.key, loadErr)
 	}
 	if regInfo.MustLoad && loadErr != nil {
@@ -228,7 +230,7 @@ func (t *ConfigWatcher) stop() error {
 }
 
 func (t *ConfigWatcher) loadFiled() error {
-	data, readErr := ioutil.ReadFile(t.path)
+	data, readErr := os.ReadFile(t.path)
 	if readErr != nil {
 		return readErr
 	}
@@ -245,7 +247,9 @@ func (t *ConfigWatcher) loadFiled() error {
 	}
 
 	t.hashVal = hashVal
-	getLoggerInst().InfoF("Read the configuration file from path %s, data: \n%s", t.path, string(data))
+	if t.enableWatchLog {
+		getLoggerInst().InfoF("Read the configuration file from path %s, data: \n%s", t.path, string(data))
+	}
 	if err := t.confHandler.EncodeConfig(data); err != nil {
 		return err
 	}
@@ -262,7 +266,9 @@ func (t *ConfigWatcher) loadFiled() error {
 
 func (t *ConfigWatcher) loopWatch() {
 	if !t.watched {
-		getLoggerInst().WarningF("Configuration %v dose not watch successfully, start timing check operation", t.key)
+		getLoggerInst().InfoF("The configuration dose not watch successfully, start timing check operation, Key: %v, Path: %v",
+			t.key, t.path)
+
 		for {
 			if t.enableWatchLog {
 				getLoggerInst().DebugF("Configuration %v dose not watch successfully. "+
@@ -273,7 +279,9 @@ func (t *ConfigWatcher) loopWatch() {
 				break
 			}
 		}
-		getLoggerInst().InfoF("Configuration %v exits the timed check operation", t.key)
+		if t.enableWatchLog {
+			getLoggerInst().InfoF("Configuration %v exits the timed check operation", t.key)
+		}
 
 		if err := t.loadFiled(); err != nil {
 			//return err
@@ -287,7 +295,7 @@ func (t *ConfigWatcher) loopWatch() {
 		}
 	}
 
-	getLoggerInst().Warning("LoopWatch break, Path: %v", t.dir)
+	getLoggerInst().InfoF("ConfigWatcher.loopWatch quit, Key: %v, Path: %v", t.key, t.path)
 }
 
 func (t *ConfigWatcher) watch() bool {
