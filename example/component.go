@@ -2,9 +2,10 @@ package main
 
 import (
 	"errors"
-	"github.com/akley-MK4/micro-app/frame"
 	"runtime"
 	"time"
+
+	"github.com/akley-MK4/micro-app/frame"
 )
 
 func init() {
@@ -32,6 +33,9 @@ type HTTPAPIServerComponent struct {
 func (t *HTTPAPIServerComponent) Initialize(kw frame.IComponentKW) error {
 	kwArgs := kw.(*HTTPAPIServerComponentKW)
 
+	frame.SubscribeEventMessage(frame.EventAPPStarted, t.GetID(), func(args ...interface{}) {
+		getGlobalLoggerInstance().Info("Test EventAPPStarted for HTTPAPIServerComponent")
+	})
 	getGlobalLoggerInstance().InfoF("HTTPAPIServer Initialize KWArgs: %v", kwArgs)
 	if !frame.RegisterConfigCallback(frame.ConfigCallbackTypeUpdate, GetConfigHandler(), onUpdateConfigEvent) {
 		return errors.New("unable to register configuration callback function")
@@ -55,6 +59,10 @@ type MonitorComponent struct {
 func (t *MonitorComponent) Initialize(kw frame.IComponentKW) error {
 	kwArgs := kw.(*MonitorComponentKW)
 	getGlobalLoggerInstance().InfoF("MonitorComponent Initialize KWArgs: %v", kwArgs)
+
+	frame.SubscribeEventMessage(frame.EventAPPStarted, t.GetID(), func(args ...interface{}) {
+		getGlobalLoggerInstance().Info("Test EventAPPStarted for MonitorComponent")
+	})
 
 	go func() {
 		for {

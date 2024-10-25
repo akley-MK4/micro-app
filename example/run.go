@@ -2,21 +2,22 @@ package main
 
 import (
 	"flag"
-	"github.com/akley-MK4/micro-app/frame"
 	"log"
 	"os"
 	"runtime"
+
+	"github.com/akley-MK4/micro-app/frame"
 )
 
 func runApp() {
 	// Parsing Command Line Parameters
 
-	launchConf := flag.String("launcher_cfg", "", "launcher_cfg")
+	launchConf := flag.String("launcher_cfg", "launcher.json", "launcher_cfg")
 	processType := flag.Int("process_type", 1, "process_type=1")
 	numCPU := flag.Int("num_cpu", 0, "num_cpu=1")
 	forceMultipleCores := flag.Bool("force_multiple_cores", false, "force_multiple_cores=false")
 	//logOutPrefix := flag.String("log_out_prefix", "", "log_out_prefix=App1")
-	enableDevMode := flag.Bool("enable_dev_mode", false, "enable_dev_mode=false, true")
+	enableDevMode := flag.Bool("enable_dev_mode", true, "enable_dev_mode=false, true")
 	//logLevelDesc := flag.String("log_level", "INFO", "log_level=INFO")
 	flag.Parse()
 
@@ -62,7 +63,7 @@ func runApp() {
 
 	// Create and run application
 	if err := frame.LaunchDaemonApplication(frame.ProcessType(*processType), workPath, *launchConf,
-		nil, nil, *enableDevMode); err != nil {
+		nil, *enableDevMode); err != nil {
 		getGlobalLoggerInstance().ErrorF("Failed to launch application, %v", err)
 		os.Exit(1)
 	}
