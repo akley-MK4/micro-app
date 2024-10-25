@@ -1,6 +1,9 @@
 package frame
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type ComponentType string
 type ComponentID string
@@ -33,13 +36,11 @@ type RegComponentInfo struct {
 }
 
 type IComponent interface {
-	baseInitialize(num int, tpy ComponentType) error
+	baseInitialize(index int, tpy ComponentType) error
 	Initialize(kw IComponentKW) error
-	GetNum() int
+	GetIndex() int
 	GetID() ComponentID
 	GetType() ComponentType
-	GetStartTimestamp() int64
-	setStartTimestamp(tp int64)
 	Start() error
 	Stop() error
 }
@@ -57,19 +58,63 @@ func RegisterComponentInfo(priority int, tpy ComponentType, newComponent NewComp
 	}
 }
 
-type BaseComponent struct {
-	num            int
-	startTimestamp int64
-	tpy            ComponentType
-	id             ComponentID
-	status         ComponentStatus
-	appProxy       IApplication
+func createAndInitializeComponent(componentIndex int, cfg componentConfigModel) (retComponent IComponent, retErr error) {
+	if cfg.Disable {
+		return
+	}
+
+	tpy := ComponentType(cfg.ComponentType)
+	regInfo, exist := regComponentInfoMap[tpy]
+	if !exist {
+		retErr = fmt.Errorf("component type %v dose not exist", tpy)
+		return
+	}
+
+	defer func() {
+		if retErr != nil {
+			retErr = fmt.Errorf("component type %v error, %v", tpy, retErr)
+			return
+		}
+	}()
+
+	retComponent = regInfo.NewComponent()
+	if err := retComponent.baseInitialize(componentIndex, tpy); err != nil {
+		retErr = err
+		return
+	}
+
+	kwData, msErr := json.Marshal(cfg.Kw)
+	if msErr != nil {
+		retErr = msErr
+		return
+	}
+	kw := regInfo.NewComponentKW()
+	if kw != nil {
+		if err := json.Unmarshal(kwData, kw); err != nil {
+			retErr = err
+			return
+		}
+	}
+
+	if err := retComponent.Initialize(kw); err != nil {
+		retErr = err
+		return
+	}
+
+	return
 }
 
-func (t *BaseComponent) baseInitialize(num int, tpy ComponentType) error {
-	t.num = num
+type BaseComponent struct {
+	index  int
+	tpy    ComponentType
+	id     ComponentID
+	status ComponentStatus
+}
+
+func (t *BaseComponent) baseInitialize(index int, tpy ComponentType) error {
+	t.index = index
 	t.tpy = tpy
-	t.id = ComponentID(fmt.Sprintf("%v_%d", tpy, num))
+	t.id = ComponentID(fmt.Sprintf("%v_%d", tpy, index))
 
 	return nil
 }
@@ -82,8 +127,8 @@ func (t *BaseComponent) GetType() ComponentType {
 	return t.tpy
 }
 
-func (t *BaseComponent) GetNum() int {
-	return t.num
+func (t *BaseComponent) GetIndex() int {
+	return t.index
 }
 
 func (t *BaseComponent) GetID() ComponentID {
@@ -92,18 +137,6 @@ func (t *BaseComponent) GetID() ComponentID {
 
 func (t *BaseComponent) GetStatus() ComponentStatus {
 	return t.status
-}
-
-func (t *BaseComponent) GetStartTimestamp() int64 {
-	return t.startTimestamp
-}
-
-func (t *BaseComponent) setStartTimestamp(tp int64) {
-	t.startTimestamp = tp
-}
-
-func (t *BaseComponent) setPartStatus(status ComponentStatus) {
-	t.status = status
 }
 
 func (t *BaseComponent) Start() error {

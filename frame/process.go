@@ -4,9 +4,29 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"strconv"
 	"strings"
 )
+
+type ProcessType int
+
+const (
+	MainProcessType ProcessType = iota + 1
+	SubProcessType
+)
+
+var (
+	currentProcessType = MainProcessType
+)
+
+func GetCurrentProcessType() ProcessType {
+	return currentProcessType
+}
+
+func setCurrentProcessType(processType ProcessType) {
+	currentProcessType = processType
+}
 
 func startSubprocess(execPath string, kwArgs map[string]interface{}) (*exec.Cmd, string, error) {
 	var arg []string
@@ -68,4 +88,20 @@ func deleteProcessIdFile(pidFilePath string) error {
 	}
 
 	return os.Remove(pidFilePath)
+}
+
+func checkAndCreateProcessId(pidFileDirPath, appId string) (retPid int, retPidFilePath string, retErr error) {
+	retPidFilePath = path.Join(pidFileDirPath, fmt.Sprintf("%s.pid", appId))
+	checkPidFileExist, checkPidFileErr := checkProcessIdFileExist(retPidFilePath)
+	if checkPidFileErr != nil {
+		retErr = checkPidFileErr
+		return
+	}
+
+	if checkPidFileExist {
+		getLoggerInst().Warning("There are currently identical pid files, please check for any conflicts")
+	}
+
+	retPid, retErr = updateProcessIdFile(retPidFilePath)
+	return
 }

@@ -3,15 +3,18 @@ package frame
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
+	"syscall"
 	"time"
+
+	ossignal "github.com/akley-MK4/go-tools-box/signal"
 )
 
 const (
 	waitStartSubProcSec = 5
+	defaultSignChanSize = 1
 )
 
 type componentConfigModel struct {
@@ -54,8 +57,7 @@ type LauncherConfigModel struct {
 	Components     []componentConfigModel `json:"components"`
 }
 
-func LaunchDaemonApplication(processType ProcessType, workPath string, launchConf string, newApp NewApplication,
-	appArgs []interface{}, enabledDevMode bool) error {
+func LaunchDaemonApplication(processType ProcessType, workPath string, launchConf string, appArgs []interface{}, enabledDevMode bool) error {
 	getLoggerInst().InfoF("Execution parameters: %v", strings.Join(os.Args, " "))
 
 	// Load launcher config
@@ -63,66 +65,83 @@ func LaunchDaemonApplication(processType ProcessType, workPath string, launchCon
 		launchConf = path.Join(GetConfigTemplatePath(workPath), launchConf)
 	}
 
-	getLoggerInst().InfoF("Loading startup configuration from path %s", launchConf)
-	fileData, readFileErr := ioutil.ReadFile(launchConf)
+	fileData, readFileErr := os.ReadFile(launchConf)
 	if readFileErr != nil {
-		return fmt.Errorf("unable to load startup configuration, %v", readFileErr)
+		return fmt.Errorf("unable to load the startup configuration, %v", readFileErr)
 	}
-	getLoggerInst().InfoF("Startup Configuration Data: \n%s", fileData)
 	launcherConf := &LauncherConfigModel{}
 	if err := json.Unmarshal(fileData, launcherConf); err != nil {
-		return fmt.Errorf("unable to unmarshal startup configuration, %v", err)
+		return fmt.Errorf("unable to unmarshal the startup configuration, %v", err)
 	}
-	getLoggerInst().Info("Successfully loaded startup configuration")
+	getLoggerInst().InfoF("Loaded the startup configuration from path %s", launchConf)
+	fmt.Println(string(fileData))
 
-	// Set log level
+	// check and update process info
+	setCurrentProcessType(processType)
+
+	if launcherConf.AppID == "" {
+		return fmt.Errorf("invalid app id")
+	}
+	pidFileDirPath := launcherConf.PidFileDirPath
+	if pidFileDirPath == "" {
+		pidFileDirPath = workPath
+	}
+	pid, pidFilePath, errPid := checkAndCreateProcessId(pidFileDirPath, launcherConf.AppID)
+	if errPid != nil {
+		return fmt.Errorf("checkAndCreateProcessId failed, %v", errPid)
+	}
+	getLoggerInst().InfoF("The current process id is %d, and the file path is %s", pid, pidFilePath)
+
+	// Set signal handler
+	signalHandler := &ossignal.Handler{}
+	if err := signalHandler.InitSignalHandler(defaultSignChanSize); err != nil {
+		return err
+	}
+	for _, sig := range []os.Signal{syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT} {
+		signalHandler.RegisterSignal(sig, func() {
+			signalHandler.CloseSignalHandler()
+		})
+	}
+
+	// log level
 	getLoggerInst().SetLevelByDesc(launcherConf.LogLevel)
 
-	// Set GC
+	// Set memory garbage collection policy
 	setGCPolicy(launcherConf.GCControl)
 
+	// Initialize the event message manager
+	if err := initializeEventMessageMgr(); err != nil {
+		return fmt.Errorf("unable to initialize EventMessageMgr, %v", err)
+	}
+
 	// Initialize and start the configuration watcher manager
-	getLoggerInst().Info("Initializing configuration watcher manager")
 	if err := GetConfigWatcherMgr().initialize(workPath, launcherConf.ConfigInfoList, enabledDevMode); err != nil {
 		return fmt.Errorf("unable to initialize configuration watcher manager, %v", err)
 	}
-	getLoggerInst().Info("Successfully initialized configuration watcher manager")
-	getLoggerInst().Info("Starting configuration watcher manager")
 	GetConfigWatcherMgr().start()
-	getLoggerInst().Info("Successfully started configuration watcher manager")
 
-	getLoggerInst().InfoF("New application with id (%v)", launcherConf.AppID)
-	var app IApplication
-	if newApp != nil {
-		app = newApp()
-	} else {
-		app = &BaseApplication{}
-	}
+	getLoggerInst().Info("Initialized the application")
 
-	// Initialize APP
-	getLoggerInst().Info("Initializing application")
-	if err := app.baseInitialize(ApplicationID(launcherConf.AppID), processType); err != nil {
-		return fmt.Errorf("unable to initialize base application, %v", err)
+	// Initialize and start all components
+	var components []IComponent
+	for componentIdx, cfg := range launcherConf.Components {
+		if component, err := createAndInitializeComponent(componentIdx, cfg); err != nil {
+			return fmt.Errorf("unable to create and initialize component type %v, ComponentIndex: %v, Error: %v", cfg.ComponentType, componentIdx, err)
+		} else {
+			components = append(components, component)
+		}
 	}
-	if err := app.Initialize(appArgs...); err != nil {
-		return fmt.Errorf("unable to initialize application, %v", err)
-	}
-	setAppProxy(app)
-	getLoggerInst().Info("Successfully initialized application")
+	getLoggerInst().Info("Created and initialized all components")
 
-	// Import component list
-	getLoggerInst().Info("Importing components")
-	if err := app.importComponents(launcherConf.Components); err != nil {
-		return fmt.Errorf("not all components imported, %v", err)
+	for _, component := range components {
+		if err := component.Start(); err != nil {
+			return fmt.Errorf("unable to start component %v, %v", component.GetID(), err)
+		}
+		getLoggerInst().InfoF("The component %v has started", component.GetID())
 	}
-	getLoggerInst().Info("All components imported successfully")
+	getLoggerInst().Info("Started all components")
 
-	getLoggerInst().Info("Starting application")
-	if err := app.start(); err != nil {
-		return fmt.Errorf("unable to start application, %v", err)
-	}
-	getLoggerInst().Info("Successfully started application")
-
+	// Check and create all child processes
 	if launcherConf.SubProcessList.Enable {
 		getLoggerInst().InfoF("Start sub process after %d seconds", waitStartSubProcSec)
 		time.Sleep(time.Second * waitStartSubProcSec)
@@ -137,6 +156,9 @@ func LaunchDaemonApplication(processType ProcessType, workPath string, launchCon
 		}
 	}
 
+	getLoggerInst().Info("The application has been successfully launched and is currently running")
+
+	// Record initial memory information snapshot
 	setInitialMemorySnapshot()
 	memSnapshot := GetInitialMemorySnapshot()
 	memSnapshotData, marshalMemSnapshotErr := json.Marshal(memSnapshot)
@@ -146,49 +168,28 @@ func LaunchDaemonApplication(processType ProcessType, workPath string, launchCon
 		getLoggerInst().InfoF("Current memory snapshot: %v", string(memSnapshotData))
 	}
 
-	// process pid file
-	pidFileDirPath := launcherConf.PidFileDirPath
-	if pidFileDirPath == "" {
-		pidFileDirPath = workPath
-	}
-	var pidFilePath string
-	if launcherConf.AppID != "" {
-		pidFilePath = path.Join(pidFileDirPath, fmt.Sprintf("%s.pid", launcherConf.AppID))
-	}
-	if pidFilePath != "" {
-		checkPidFileExist, checkPidFileErr := checkProcessIdFileExist(pidFilePath)
-		if checkPidFileErr != nil {
-			getLoggerInst().WarningF("Failed to check the process id file, Path: %s, Err: %v", pidFilePath, checkPidFileErr)
-		}
-		if checkPidFileExist {
-			getLoggerInst().Warning("There are currently identical pid files, please check for any conflicts")
-		}
+	PublishEventMessage(EventAPPStarted)
 
-		pidNum, pidFileErr := updateProcessIdFile(pidFilePath)
-		if pidFileErr != nil {
-			getLoggerInst().WarningF("Failed to update process id file, Path: %v, Err: %v", pidFilePath, pidFileErr)
-		} else {
-			getLoggerInst().InfoF("The current process id is %d, and the file path is %s", pidNum, pidFilePath)
+	signalHandler.ListenSignal()
+	// Stop process
+	getLoggerInst().Info("Stopping the application")
+
+	for _, component := range components {
+		if err := component.Stop(); err != nil {
+			getLoggerInst().WarningF("Failed to stop component %v, %v", component.GetID(), err)
+			continue
 		}
-	} else {
-		getLoggerInst().Warning("The process id file not created, unable to concatenate complete path")
+		getLoggerInst().InfoF("The component %v has stopped", component.GetID())
 	}
-
-	getLoggerInst().Info("Application is running")
-	app.forever()
-
-	getLoggerInst().Info("Stopping application")
-	if err := app.stop(); err != nil {
-		return fmt.Errorf("an error occurred when stopping application, %v", err)
-	}
+	getLoggerInst().Info("Stopped all components")
 
 	if err := deleteProcessIdFile(pidFilePath); err != nil {
 		getLoggerInst().WarningF("Failed to delete the process id file, %v", err)
 	} else {
-		getLoggerInst().Info("Successfully deleted the process id file")
+		getLoggerInst().Info("Deleted the process id file")
 	}
 
-	getLoggerInst().Info("Successfully stopped application")
+	getLoggerInst().Info("Stopped the application")
 
 	return nil
 }
