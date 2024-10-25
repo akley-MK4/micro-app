@@ -3,11 +3,12 @@ package frame
 import (
 	"crypto/md5"
 	"fmt"
-	"github.com/akley-MK4/go-tools-box/ctime"
-	"github.com/fsnotify/fsnotify"
 	"os"
 	"path"
 	"time"
+
+	"github.com/akley-MK4/go-tools-box/ctime"
+	"github.com/fsnotify/fsnotify"
 )
 
 const (
@@ -216,7 +217,7 @@ func (t *ConfigWatcher) initialize(key, filePath string, regInfo *ConfigRegInfo)
 		return loadErr
 	}
 
-	getLoggerInst().InfoF("Successfully initialized ConfigWatcher %v, Dir: %s, Path: %s", t.key, t.dir, t.path)
+	getLoggerInst().InfoF("Initialized ConfigWatcher %v, Dir: %s, Path: %s", t.key, t.dir, t.path)
 	return nil
 }
 

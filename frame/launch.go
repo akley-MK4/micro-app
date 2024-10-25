@@ -131,7 +131,7 @@ func LaunchDaemonApplication(processType ProcessType, workPath string, launchCon
 			components = append(components, component)
 		}
 	}
-	getLoggerInst().Info("Created and initialized all components")
+	getLoggerInst().Info("Successfully created and initialized all components")
 
 	for _, component := range components {
 		if err := component.Start(); err != nil {
@@ -139,7 +139,7 @@ func LaunchDaemonApplication(processType ProcessType, workPath string, launchCon
 		}
 		getLoggerInst().InfoF("The component %v has started", component.GetID())
 	}
-	getLoggerInst().Info("Started all components")
+	getLoggerInst().Info("Successfully started all components")
 
 	// Check and create all child processes
 	if launcherConf.SubProcessList.Enable {
