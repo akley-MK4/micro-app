@@ -31,12 +31,11 @@ type configInfoModel struct {
 }
 
 type GCControl struct {
-	Percent                    int    `json:"percent"`
-	DisableDefaultGC           bool   `json:"disable_default_gc"`
-	MemoryUsageLimitBytes      int64  `json:"memory_usage_limit_bytes"`
-	MemoryUsageLimitPercentage string `json:"memory_usage_limit_percentage"`
-	EnableForce                bool   `json:"enable_force"`
-	ForcePolicy                struct {
+	Percent               int   `json:"percent"`
+	DisableDefaultGC      bool  `json:"disable_default_gc"`
+	MemoryUsageLimitBytes int64 `json:"memory_usage_limit_bytes"`
+	EnableForce           bool  `json:"enable_force"`
+	ForcePolicy           struct {
 		IntervalSecondS int `json:"interval_seconds"`
 		MemPeak         int `json:"mem_peak"`
 	} `json:"force_policy"`
@@ -159,14 +158,7 @@ func LaunchDaemonApplication(processType ProcessType, workPath string, launchCon
 	getLoggerInst().Info("The application has been successfully launched and is currently running")
 
 	// Record initial memory information snapshot
-	setInitialMemorySnapshot()
-	memSnapshot := GetInitialMemorySnapshot()
-	memSnapshotData, marshalMemSnapshotErr := json.Marshal(memSnapshot)
-	if marshalMemSnapshotErr != nil {
-		getLoggerInst().WarningF("Failed to marshal current memory snapshot, %v", marshalMemSnapshotErr)
-	} else {
-		getLoggerInst().InfoF("Current memory snapshot: %v", string(memSnapshotData))
-	}
+	fmt.Println("Current memory snapshot: \n", PrintCurrentMemorySnapshot())
 
 	PublishEventMessage(EventAPPStarted)
 
