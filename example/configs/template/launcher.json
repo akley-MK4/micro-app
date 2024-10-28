@@ -3,7 +3,10 @@
   "pid_file_dir_path": "/tmp/",
   "log_level": "DEBUG",
   "gc_control": {
-    "disable_default_gc": false,
+    "percent": 0,
+    "disable_default_gc": true,
+    "memory_usage_limit_bytes": 0,
+    "memory_usage_limit_percentage": "10%",
     "enable_force": false,
     "force_policy": {
       "interval_seconds": 120,

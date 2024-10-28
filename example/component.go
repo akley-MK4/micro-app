@@ -2,6 +2,9 @@ package main
 
 import (
 	"errors"
+	"runtime"
+	"time"
+
 	"github.com/akley-MK4/micro-app/frame"
 )
 
@@ -13,9 +16,9 @@ func init() {
 	})
 
 	frame.RegisterComponentInfo(frame.ComponentPriorityGeneral, "StaticResourceServer", func() frame.IComponent {
-		return &StaticResourceServerComponent{}
+		return &MonitorComponent{}
 	}, func() frame.IComponentKW {
-		return &StaticResourceServerComponentKW{}
+		return &MonitorComponentKW{}
 	})
 }
 
@@ -30,6 +33,9 @@ type HTTPAPIServerComponent struct {
 func (t *HTTPAPIServerComponent) Initialize(kw frame.IComponentKW) error {
 	kwArgs := kw.(*HTTPAPIServerComponentKW)
 
+	frame.SubscribeEventMessage(frame.EventAPPStarted, t.GetID(), func(args ...interface{}) {
+		getGlobalLoggerInstance().Info("Test EventAPPStarted for HTTPAPIServerComponent")
+	})
 	getGlobalLoggerInstance().InfoF("HTTPAPIServer Initialize KWArgs: %v", kwArgs)
 	if !frame.RegisterConfigCallback(frame.ConfigCallbackTypeUpdate, GetConfigHandler(), onUpdateConfigEvent) {
 		return errors.New("unable to register configuration callback function")
@@ -42,18 +48,34 @@ func (t *HTTPAPIServerComponent) Start() error {
 	return nil
 }
 
-type StaticResourceServerComponentKW struct {
+type MonitorComponentKW struct {
 	ServerAddr string `json:"server_addr"`
 }
 
-type StaticResourceServerComponent struct {
+type MonitorComponent struct {
 	frame.BaseComponent
 }
 
-func (t *StaticResourceServerComponent) Initialize(kw frame.IComponentKW) error {
-	kwArgs := kw.(*StaticResourceServerComponentKW)
+func (t *MonitorComponent) Initialize(kw frame.IComponentKW) error {
+	kwArgs := kw.(*MonitorComponentKW)
+	getGlobalLoggerInstance().InfoF("MonitorComponent Initialize KWArgs: %v", kwArgs)
 
-	getGlobalLoggerInstance().InfoF("StaticResourceServer Initialize KWArgs: %v", kwArgs)
+	frame.SubscribeEventMessage(frame.EventAPPStarted, t.GetID(), func(args ...interface{}) {
+		getGlobalLoggerInstance().Info("Test EventAPPStarted for MonitorComponent")
+	})
+
+	go func() {
+		for {
+			time.Sleep(time.Second * 5)
+			var ms runtime.MemStats
+			runtime.ReadMemStats(&ms)
+			//kbSize := 1024
+			//mbSize := kbSize * 1024
+			getGlobalLoggerInstance().DebugF("MemStats Bytes, Alloc: %v, TotalAlloc: %v, Sys: %v, HeapAlloc: %v, HeapIdle: %v, "+
+				"HeapReleased: %v, NextGC: %v, LastGC: %v, NumGC: %v",
+				ms.Alloc, ms.TotalAlloc, ms.Sys, ms.HeapAlloc, ms.HeapIdle, ms.HeapReleased, ms.NextGC, ms.LastGC, ms.NumGC)
+		}
+	}()
 	return nil
 }
 
