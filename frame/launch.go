@@ -72,7 +72,7 @@ func LaunchDaemonApplication(processType ProcessType, workPath string, launchCon
 	if err := json.Unmarshal(fileData, launcherConf); err != nil {
 		return fmt.Errorf("unable to unmarshal the startup configuration, %v", err)
 	}
-	getLoggerInst().InfoF("Loaded the startup configuration from path %s", launchConf)
+	getLoggerInst().InfoF("The content of the startup configuration loaded from path %v is as follows", launchConf)
 	fmt.Println(string(fileData))
 
 	// check and update process info
@@ -158,7 +158,9 @@ func LaunchDaemonApplication(processType ProcessType, workPath string, launchCon
 	getLoggerInst().Info("The application has been successfully launched and is currently running")
 
 	// Record initial memory information snapshot
-	fmt.Println("Current memory snapshot: \n", PrintCurrentMemorySnapshot())
+	setInitialMemorySnapshot()
+	getLoggerInst().Info("The current memory usage information of the application is as follows")
+	fmt.Println(GetInitialMemorySnapshot())
 
 	PublishEventMessage(EventAPPStarted)
 
