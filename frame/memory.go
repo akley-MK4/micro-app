@@ -57,31 +57,47 @@ func UpdateMemoryUsageLimitBytes(limitBytes int64) {
 	beforeLimitBytes := debug.SetMemoryLimit(limitBytes)
 	getLoggerInst().InfoF("The usage limit for memory size has been updated from %d to %d",
 		beforeLimitBytes, limitBytes)
-	return
 }
 
-func PrintCurrentMemorySnapshot() string {
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
+func NewMemorySnapshot() *MemorySnapshot {
+	snapshot := &MemorySnapshot{}
+	runtime.ReadMemStats(&snapshot.stats)
+	return snapshot
+}
 
+type MemorySnapshot struct {
+	stats runtime.MemStats
+}
+
+func (t *MemorySnapshot) GetStats() runtime.MemStats {
+	return t.stats
+}
+
+func (t *MemorySnapshot) String() string {
 	type Info struct {
-		Alloc      string
-		TotalAlloc string
-		Sys        string
-		Mallocs    string
-		HeapAlloc  string
-		HeapSys    string
-		StackSys   string
+		Alloc       string
+		TotalAlloc  string
+		Sys         string
+		Mallocs     string
+		HeapAlloc   string
+		HeapSys     string
+		HeapObjects uint64
+		StackSys    string
+		MSpanSys    string
+		MCacheSys   string
 	}
 
 	info := Info{
-		Alloc:      MemorySizeToString(memStats.Alloc),
-		TotalAlloc: MemorySizeToString(memStats.TotalAlloc),
-		Sys:        MemorySizeToString(memStats.Sys),
-		Mallocs:    MemorySizeToString(memStats.Mallocs),
-		HeapAlloc:  MemorySizeToString(memStats.HeapAlloc),
-		HeapSys:    MemorySizeToString(memStats.HeapSys),
-		StackSys:   MemorySizeToString(memStats.StackSys),
+		Alloc:       MemorySizeToString(t.stats.Alloc),
+		TotalAlloc:  MemorySizeToString(t.stats.TotalAlloc),
+		Sys:         MemorySizeToString(t.stats.Sys),
+		Mallocs:     MemorySizeToString(t.stats.Mallocs),
+		HeapAlloc:   MemorySizeToString(t.stats.HeapAlloc),
+		HeapSys:     MemorySizeToString(t.stats.HeapSys),
+		HeapObjects: t.stats.HeapObjects,
+		StackSys:    MemorySizeToString(t.stats.StackSys),
+		MSpanSys:    MemorySizeToString(t.stats.MSpanSys),
+		MCacheSys:   MemorySizeToString(t.stats.MCacheSys),
 	}
 
 	d, err := json.MarshalIndent(info, "", " ")
@@ -95,4 +111,16 @@ func PrintCurrentMemorySnapshot() string {
 func MemorySizeToString(size uint64) string {
 	return fmt.Sprintf("(%.2fGBs/%.2fMBs/%.2fKBs/%dBytes)",
 		float64(size)/float64(GBSize), float64(size)/float64(MBSize), float64(size)/float64(KBSize), size)
+}
+
+var (
+	initialMemorySnapshot *MemorySnapshot
+)
+
+func setInitialMemorySnapshot() {
+	initialMemorySnapshot = NewMemorySnapshot()
+}
+
+func GetInitialMemorySnapshot() *MemorySnapshot {
+	return initialMemorySnapshot
 }

@@ -196,7 +196,7 @@ func (t *ConfigWatcher) initialize(key, filePath string, regInfo *ConfigRegInfo)
 
 	if err := w.Add(t.dir); err != nil {
 		if t.enableWatchLog {
-			getLoggerInst().WarningF("Failed to add watch path %s, Key: %v, Err: %v", t.dir, t.key, err)
+			getLoggerInst().WarningF("Unable to watch path %v for configuration %v, %v", t.dir, t.key, err)
 		}
 		if regInfo.MustLoad {
 			return err
@@ -211,13 +211,12 @@ func (t *ConfigWatcher) initialize(key, filePath string, regInfo *ConfigRegInfo)
 
 	loadErr := t.loadFiled()
 	if loadErr != nil && t.enableWatchLog {
-		getLoggerInst().WarningF("Failed to load configuration file from path %s, Key: %v, Err: %v", t.path, t.key, loadErr)
+		getLoggerInst().WarningF("Failed to load configuration %v from path %s, %v", t.key, t.path, loadErr)
 	}
 	if regInfo.MustLoad && loadErr != nil {
 		return loadErr
 	}
 
-	getLoggerInst().InfoF("Initialized ConfigWatcher %v, Dir: %s, Path: %s", t.key, t.dir, t.path)
 	return nil
 }
 
@@ -248,31 +247,32 @@ func (t *ConfigWatcher) loadFiled() error {
 	}
 
 	t.hashVal = hashVal
-	if t.enableWatchLog {
-		getLoggerInst().InfoF("Read the configuration file from path %s, data: \n%s", t.path, string(data))
-	}
 	if err := t.confHandler.EncodeConfig(data); err != nil {
 		return err
 	}
 	t.version += 1
 	t.updateTimestamp = ctime.CurrentTimestamp()
+	getLoggerInst().InfoF("Updated the configuration %v from path %v, Version: %v", t.key, t.path, t.version)
+	if t.enableWatchLog {
+		getLoggerInst().InfoF("The content of configuration %v in version %v is as follows", t.key, t.version)
+		fmt.Println(string(data))
+	}
 
 	updateCallbacks := t.updateTypeCallbacks
 	for _, f := range updateCallbacks {
 		f()
 	}
-	getLoggerInst().InfoF("Updated the configuration of ConfigWatcher %v, Version: %v", t.key, t.version)
+
 	return nil
 }
 
 func (t *ConfigWatcher) loopWatch() {
 	if !t.watched {
-		getLoggerInst().InfoF("The configuration dose not watch successfully, start timing check operation, Key: %v, Path: %v",
-			t.key, t.path)
+		getLoggerInst().InfoF("The configuration %v dose not watch successfully, start timing check operation", t.key)
 
 		for {
 			if t.enableWatchLog {
-				getLoggerInst().DebugF("Configuration %v dose not watch successfully. "+
+				getLoggerInst().DebugF("The configuration %v dose not watch successfully. "+
 					"Wait for %d seconds before check and watch the config", t.key, t.retryWatchIntervalSec)
 			}
 			time.Sleep(time.Second * time.Duration(t.retryWatchIntervalSec))
@@ -281,12 +281,12 @@ func (t *ConfigWatcher) loopWatch() {
 			}
 		}
 		if t.enableWatchLog {
-			getLoggerInst().InfoF("Configuration %v exits the timed check operation", t.key)
+			getLoggerInst().InfoF("The configuration %v exits the timed check operation", t.key)
 		}
 
 		if err := t.loadFiled(); err != nil {
 			//return err
-			getLoggerInst().WarningF("Failed to load configuration file, Key: %v, Err: %v", t.key, err)
+			getLoggerInst().WarningF("Failed to load configuration %v, %v", t.key, err)
 		}
 	}
 
@@ -342,7 +342,7 @@ func (t *ConfigWatcher) watch() bool {
 		//}
 
 		if err := t.loadFiled(); err != nil {
-			getLoggerInst().WarningF("Failed to load configuration file from path %s, %v", e.Name, err)
+			getLoggerInst().WarningF("Failed to load configuration %v from path %s, %v", t.key, t.path, err)
 		}
 	}
 
