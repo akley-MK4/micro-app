@@ -252,10 +252,11 @@ func (t *ConfigWatcher) loadFiled() error {
 	}
 	t.version += 1
 	t.updateTimestamp = ctime.CurrentTimestamp()
-	getLoggerInst().InfoF("Updated the configuration %v from path %v, Version: %v", t.key, t.path, t.version)
 	if t.enableWatchLog {
-		getLoggerInst().InfoF("The content of configuration %v in version %v is as follows", t.key, t.version)
+		getLoggerInst().InfoF("The configuration %v has been updated from path %s, and the content in version %v is as follows", t.key, t.path, t.version)
 		fmt.Println(string(data))
+	} else {
+		getLoggerInst().InfoF("The configuration %v has been updated from path %s, and the version is", t.key, t.path, t.version)
 	}
 
 	updateCallbacks := t.updateTypeCallbacks
