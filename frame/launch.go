@@ -59,6 +59,20 @@ type LauncherConfigModel struct {
 func LaunchDaemonApplication(processType ProcessType, workPath string, launchConf string, appArgs []interface{}, enabledDevMode bool) error {
 	getLoggerInst().InfoF("Execution parameters: %v", strings.Join(os.Args, " "))
 
+	if sysVer, errSysVer := os.ReadFile("/proc/version"); errSysVer != nil {
+		getLoggerInst().WarningF("Failed to read the system version, %v", errSysVer)
+	} else {
+		getLoggerInst().InfoF("The current system version: %v", string(sysVer))
+	}
+
+	if v, err := os.ReadFile("/proc/sys/vm/swappiness"); err != nil {
+		getLoggerInst().WarningF("Unable to get the kernel parameter swappiness of the system, %v", err)
+	} else {
+		getLoggerInst().InfoF("The kernel parameter swappiness of the system is %v", string(v))
+	}
+
+	getLoggerInst().InfoF("The current GODEBUG: %v", os.Getenv("GODEBUG"))
+
 	// Load launcher config
 	if enabledDevMode {
 		launchConf = path.Join(GetConfigTemplatePath(workPath), launchConf)
@@ -124,6 +138,9 @@ func LaunchDaemonApplication(processType ProcessType, workPath string, launchCon
 	// Initialize and start all components
 	var components []IComponent
 	for componentIdx, cfg := range launcherConf.Components {
+		if cfg.Disable {
+			continue
+		}
 		if component, err := createAndInitializeComponent(componentIdx, cfg); err != nil {
 			return fmt.Errorf("unable to create and initialize component type %v, ComponentIndex: %v, Error: %v", cfg.ComponentType, componentIdx, err)
 		} else {
